@@ -1,0 +1,85 @@
+/**
+ * 全局通用样式（在 App.vue 中引入，作用于所有页面）
+ *
+ * 设计 token 见 uni.scss（SCSS 变量）与 App.vue（CSS 变量）。
+ */
+
+/* 页面根容器 */
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background-color: $c-bg;
+  color: $c-text;
+  font-family: $font-family;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+/* tabBar 页面需要在底部为 tabBar 让位 */
+.page--tab {
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+}
+
+/* 有底部固定操作条的页面需要让位 */
+.page--footer {
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+/* 主按钮 */
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  height: 96rpx;
+  border: none;
+  border-radius: 999rpx;
+  background-color: $c-primary;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 500;
+  line-height: 1;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.88;
+  }
+}
+
+/* 输入框占位符（需为全局样式，组件 scoped 样式不作用于占位节点） */
+.input-ph {
+  color: #a89f95;
+}
+
+/* 分区小标题（份量 / 主料 / 步骤…） */
+.section-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $c-text;
+}
+
+/* 空壳页占位提示（工单 01 建立，后续工单接管后替换） */
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 200rpx 48rpx;
+  color: $c-text-muted;
+  font-size: 26rpx;
+}
+
+/* 底部固定操作条 */
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background-color: rgba(250, 248, 245, 0.96);
+  border-top: 1px solid $c-line;
+}
