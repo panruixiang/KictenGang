@@ -1,0 +1,114 @@
+{
+	"pages": [
+		{
+			"path": "pages/recipe-library/index",
+			"style": {
+				"navigationBarTitleText": "菜谱"
+			}
+		},
+		{
+			"path": "pages/recipe-detail/index",
+			"style": {
+				"navigationBarTitleText": "菜谱详情"
+			}
+		},
+		{
+			"path": "pages/cooking-guide/index",
+			"style": {
+				"navigationBarTitleText": "做菜引导"
+			}
+		},
+		{
+			"path": "pages/cooking-log-edit/index",
+			"style": {
+				"navigationBarTitleText": "记一笔"
+			}
+		},
+		{
+			"path": "pages/ingredient-search/index",
+			"style": {
+				"navigationBarTitleText": "反查"
+			}
+		},
+		{
+			"path": "pages/cooking-log-list/index",
+			"style": {
+				"navigationBarTitleText": "记录"
+			}
+		},
+		{
+			"path": "pages/search-results/index",
+			"style": {
+				"navigationBarTitleText": "反查结果"
+			}
+		},
+		{
+			"path": "pages/staple-ingredients/index",
+			"style": {
+				"navigationBarTitleText": "常备食材"
+			}
+		},
+		{
+			"path": "pages/recipe-form/index",
+			"style": {
+				"navigationBarTitleText": "录入菜谱"
+			}
+		},
+		{
+			"path": "pages/favorites/index",
+			"style": {
+				"navigationBarTitleText": "我的收藏"
+			}
+		},
+		{
+			"path": "pages/profile/index",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/join-confirm/index",
+			"style": {
+				"navigationBarTitleText": "加入空间"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationStyle": "custom",
+		"navigationBarTextStyle": "black",
+		"navigationBarBackgroundColor": "#FAF8F5",
+		"backgroundColor": "#FAF8F5"
+	},
+	"tabBar": {
+		"color": "#9A928A",
+		"selectedColor": "#E8590C",
+		"backgroundColor": "#FFFFFF",
+		"borderStyle": "black",
+		"list": [
+			{
+				"pagePath": "pages/recipe-library/index",
+				"text": "菜谱",
+				"iconPath": "static/tabbar/recipe.png",
+				"selectedIconPath": "static/tabbar/recipe-active.png"
+			},
+			{
+				"pagePath": "pages/ingredient-search/index",
+				"text": "反查",
+				"iconPath": "static/tabbar/search.png",
+				"selectedIconPath": "static/tabbar/search-active.png"
+			},
+			{
+				"pagePath": "pages/cooking-log-list/index",
+				"text": "记录",
+				"iconPath": "static/tabbar/log.png",
+				"selectedIconPath": "static/tabbar/log-active.png"
+			},
+			{
+				"pagePath": "pages/profile/index",
+				"text": "我的",
+				"iconPath": "static/tabbar/profile.png",
+				"selectedIconPath": "static/tabbar/profile-active.png"
+			}
+		]
+	}
+}
