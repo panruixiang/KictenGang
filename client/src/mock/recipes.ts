@@ -221,16 +221,6 @@ export const RECIPES: Recipe[] = [
   },
 ];
 
-/** 取全部菜谱（内置 + 自家） */
-export function getAllRecipes(): Recipe[] {
-  return RECIPES;
-}
-
-/** 按 id 取菜谱 */
-export function getRecipeById(id: string): Recipe | undefined {
-  return RECIPES.find((r) => r.id === id);
-}
-
 /** 取某道菜谱在指定版本下的配料（无版本概念时返回菜谱自身配料） */
 export function getRecipeIngredients(recipe: Recipe, versionId?: string): RecipeIngredient[] {
   if (!recipe.versions?.length) {

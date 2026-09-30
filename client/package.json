@@ -2,7 +2,6 @@
   "name": "kitchengang-client",
   "version": "0.0.0",
   "scripts": {
-    "gen:icons": "node scripts/gen-icons.mjs",
     "dev:custom": "uni -p",
     "dev:h5": "uni",
     "dev:h5:ssr": "uni --ssr",

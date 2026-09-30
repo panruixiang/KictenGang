@@ -109,8 +109,8 @@ const emit = defineEmits<{
 }
 
 .card__fav-icon {
-  width: 38rpx;
-  height: 38rpx;
+  width: 42rpx;
+  height: 42rpx;
 }
 
 .card__body {

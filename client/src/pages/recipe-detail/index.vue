@@ -2,7 +2,8 @@
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import Chip from '@/components/Chip.vue';
-import { getRecipeById, getRecipeIngredients } from '@/mock/recipes';
+import { getRecipeById } from '@/store';
+import { getRecipeIngredients } from '@/mock/recipes';
 import type { Recipe } from '@/types';
 import { scaleAmount, SERVING_OPTIONS } from '@/utils/servings';
 
@@ -67,7 +68,7 @@ function startCooking() {
     <view class="cover">
       <image class="cover__img" :src="recipe.cover" mode="aspectFill" />
       <view class="cover__back" @tap="goBack">
-        <view class="cover__arrow" />
+        <image class="cover__arrow" src="/static/icons/chevron-left-white.png" mode="aspectFit" />
       </view>
     </view>
 
@@ -182,13 +183,10 @@ function startCooking() {
   background-color: rgba(31, 27, 22, 0.36);
 }
 
+/* 返回箭头图标（Lucide chevron-left，白色版） */
 .cover__arrow {
-  width: 20rpx;
-  height: 20rpx;
-  margin-left: -4rpx;
-  border-left: 4rpx solid #ffffff;
-  border-bottom: 4rpx solid #ffffff;
-  transform: rotate(45deg);
+  width: 34rpx;
+  height: 34rpx;
 }
 
 /* 内容区上浮压住封面下沿 */

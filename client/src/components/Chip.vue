@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 通用标签 chip：未选中 / 选中两个态
- * （菜系筛选、份量选择、版本切换共用）
- * 值传递：label + selected；点击通过 tap 事件向上传递
+ * （菜系筛选、份量选择、版本切换、食材勾选共用）
+ * 值传递：label + selected + check；点击通过 tap 事件向上传递
  */
 withDefaults(
   defineProps<{
@@ -12,8 +12,10 @@ withDefaults(
     selected?: boolean;
     /** md = 标准（筛选），sm = 紧凑（份量 / 版本） */
     size?: 'md' | 'sm';
+    /** 选中时显示对勾（食材勾选场景） */
+    check?: boolean;
   }>(),
-  { selected: false, size: 'md' },
+  { selected: false, size: 'md', check: false },
 );
 
 const emit = defineEmits<{ (e: 'tap'): void }>();
@@ -21,6 +23,7 @@ const emit = defineEmits<{ (e: 'tap'): void }>();
 
 <template>
   <view class="chip" :class="[`chip--${size}`, { 'chip--on': selected }]" @tap="emit('tap')">
+    <image v-if="check && selected" class="chip__check" src="/static/icons/check.png" mode="aspectFit" />
     <text>{{ label }}</text>
   </view>
 </template>
@@ -51,5 +54,12 @@ const emit = defineEmits<{ (e: 'tap'): void }>();
   background-color: $c-primary;
   border-color: $c-primary;
   color: #ffffff;
+}
+
+/* 选中对勾图标（Lucide check，白色版） */
+.chip__check {
+  width: 26rpx;
+  height: 26rpx;
+  margin-right: 8rpx;
 }
 </style>

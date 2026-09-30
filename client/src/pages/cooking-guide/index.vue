@@ -3,7 +3,8 @@ import { computed, onUnmounted, ref } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import Chip from '@/components/Chip.vue';
 import NavBar from '@/components/NavBar.vue';
-import { getRecipeById, getRecipeIngredients } from '@/mock/recipes';
+import { getRecipeById } from '@/store';
+import { getRecipeIngredients } from '@/mock/recipes';
 import type { Recipe } from '@/types';
 import { scaleAmount, SERVING_OPTIONS } from '@/utils/servings';
 
@@ -183,7 +184,12 @@ function goLog() {
         <view class="quick__head" @tap="quickOpen = !quickOpen">
           <text class="quick__title">配料速查</text>
           <text class="quick__sub">{{ scaledIngredients.length }} 样 · {{ targetServings }} 人份</text>
-          <view class="quick__arrow" :class="{ 'quick__arrow--open': quickOpen }" />
+          <image
+            class="quick__arrow"
+            :class="{ 'quick__arrow--open': quickOpen }"
+            src="/static/icons/chevron-down.png"
+            mode="aspectFit"
+          />
         </view>
         <view v-if="quickOpen" class="quick__body">
           <view v-for="ing in scaledIngredients" :key="ing.name" class="quick__row">
@@ -305,19 +311,15 @@ function goLog() {
   color: $c-text-muted;
 }
 
+/* 展开指示箭头（Lucide chevron-down） */
 .quick__arrow {
-  width: 16rpx;
-  height: 16rpx;
-  margin-top: -8rpx;
-  border-right: 3rpx solid $c-text-muted;
-  border-bottom: 3rpx solid $c-text-muted;
-  transform: rotate(45deg);
+  width: 28rpx;
+  height: 28rpx;
   transition: transform 0.15s ease;
 }
 
 .quick__arrow--open {
-  margin-top: 6rpx;
-  transform: rotate(-135deg);
+  transform: rotate(180deg);
 }
 
 .quick__body {

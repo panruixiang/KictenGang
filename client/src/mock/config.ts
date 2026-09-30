@@ -5,4 +5,6 @@
 export const mockFlags = {
   /** 打开后：隐藏自家菜谱，演示菜谱库"自家菜为 0"的空态提示 */
   hideOwnRecipes: false,
+  /** 打开后：记录列表为空，演示"还没有记录"空态 */
+  emptyLogs: false,
 };

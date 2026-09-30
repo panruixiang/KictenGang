@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 自绘标题区：全局 navigationStyle 为 custom，各页面用它显示标题与返回
- * 值传递：title + showBack（tabBar 页面传 false）
+ * 值传递：title + showBack（tabBar 页面传 false）+ close（表单页用关闭键替代返回）
  */
 withDefaults(
   defineProps<{
@@ -9,9 +9,13 @@ withDefaults(
     title?: string;
     /** 是否显示返回按钮 */
     showBack?: boolean;
+    /** 显示右侧关闭键（传 true 时不显示返回箭头），点击抛 close 事件 */
+    close?: boolean;
   }>(),
-  { title: '', showBack: true },
+  { title: '', showBack: true, close: false },
 );
+
+const emit = defineEmits<{ (e: 'close'): void }>();
 
 /** 状态栏高度（小程序端用于留出安全区；H5 端为 0） */
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0;
@@ -30,10 +34,14 @@ function goBack() {
   <view class="nav">
     <view class="nav__status" :style="{ height: statusBarHeight + 'px' }" />
     <view class="nav__bar">
-      <view v-if="showBack" class="nav__back" @tap="goBack">
-        <view class="nav__arrow" />
+      <view v-if="showBack && !close" class="nav__back" @tap="goBack">
+        <image class="nav__arrow" src="/static/icons/chevron-left.png" mode="aspectFit" />
       </view>
       <text class="nav__title">{{ title }}</text>
+      <!-- 关闭键（Lucide x），表单页替代返回 -->
+      <view v-if="close" class="nav__close" @tap="emit('close')">
+        <image class="nav__close-icon" src="/static/icons/close.png" mode="aspectFit" />
+      </view>
     </view>
   </view>
 </template>
@@ -59,13 +67,10 @@ function goBack() {
   margin-left: -12rpx;
 }
 
-/* CSS 绘制的返回箭头（避免额外图片资源） */
+/* 返回箭头图标（Lucide chevron-left） */
 .nav__arrow {
-  width: 20rpx;
-  height: 20rpx;
-  border-left: 4rpx solid $c-text;
-  border-bottom: 4rpx solid $c-text;
-  transform: rotate(45deg);
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .nav__title {
@@ -73,5 +78,20 @@ function goBack() {
   font-size: 34rpx;
   font-weight: 600;
   color: $c-text;
+}
+
+.nav__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  margin-left: auto;
+  margin-right: -12rpx;
+}
+
+.nav__close-icon {
+  width: 36rpx;
+  height: 36rpx;
 }
 </style>

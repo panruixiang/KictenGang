@@ -3,8 +3,7 @@ import { computed, ref } from 'vue';
 import Chip from '@/components/Chip.vue';
 import RecipeCard from '@/components/RecipeCard.vue';
 import { mockFlags } from '@/mock/config';
-import { getAllRecipes } from '@/mock/recipes';
-import { isFavorite, store, toggleFavorite } from '@/store';
+import { getAllRecipes, isFavorite, store, toggleFavorite } from '@/store';
 import type { Recipe } from '@/types';
 
 /** 菜系筛选档位（"全部"默认选中） */
@@ -57,12 +56,12 @@ function goCreate() {
           <text class="space__name">{{ store.spaceName }}</text>
         </view>
         <view class="head__add" @tap="goCreate">
-          <text class="head__add-icon">＋</text>
+          <image class="head__add-icon" src="/static/icons/plus.png" mode="aspectFit" />
         </view>
       </view>
 
       <view class="search">
-        <view class="search__icon" />
+        <image class="search__icon" src="/static/icons/search.png" mode="aspectFit" />
         <input
           v-model="searchText"
           class="search__input"
@@ -142,9 +141,8 @@ function goCreate() {
 }
 
 .head__add-icon {
-  color: #ffffff;
-  font-size: 44rpx;
-  line-height: 1;
+  width: 40rpx;
+  height: 40rpx;
 }
 
 /* 搜索框 */
@@ -159,27 +157,12 @@ function goCreate() {
   background-color: $c-card;
 }
 
-/* CSS 绘制的放大镜图标 */
+/* 搜索图标（Lucide search） */
 .search__icon {
-  position: relative;
   flex-shrink: 0;
-  width: 26rpx;
-  height: 26rpx;
-  margin-right: 22rpx;
-  border: 4rpx solid #b7aea3;
-  border-radius: 50%;
-
-  &::after {
-    content: '';
-    position: absolute;
-    right: -12rpx;
-    bottom: -8rpx;
-    width: 14rpx;
-    height: 4rpx;
-    border-radius: 4rpx;
-    background-color: #b7aea3;
-    transform: rotate(45deg);
-  }
+  width: 30rpx;
+  height: 30rpx;
+  margin-right: 20rpx;
 }
 
 .search__input {
