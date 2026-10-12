@@ -56,9 +56,9 @@ export interface Recipe {
   servings: number | null;
   /** 封面图路径 */
   cover: string;
-  /** 是否内置菜谱（内置菜只读） */
+  /** 是否预置初始数据（仅供空态演示过滤；Q31 起无权限 / 展示差异，所有菜谱都可编辑删除） */
   isBuiltin: boolean;
-  /** 来源小字（如"复制自内置 · 番茄炒蛋"），仅自家菜可能有 */
+  /** 来源小字（历史数据保留；Q31 起 UI 不再展示） */
   source?: string;
   /** 配方版本列表，仅自家菜可能有 */
   versions?: RecipeVersion[];
@@ -79,6 +79,64 @@ export interface CookingLogIngredient {
   changed?: boolean;
 }
 
+/** 空间成员（头像 = 彩色圆 + 首字） */
+export interface Member {
+  id: string;
+  /** 成员名字 */
+  name: string;
+  /** 头像首字 */
+  initial: string;
+  /** 头像底色（彩色圆） */
+  color: string;
+}
+
+/** 点菜时间标签（轻量，不做日历） */
+export type OrderTimeTag = '今晚' | '明天午餐' | '明天晚餐' | '周末' | '不着急';
+
+/** 点菜状态：求菜中 / 已认领 / 已完成 / 已取消 */
+export type DishOrderStatus = 'open' | 'claimed' | 'done' | 'cancelled';
+
+/** 点菜：群聊里的结构化业务对象（一条可被认领/完成的"想吃"请求） */
+export interface DishOrder {
+  id: string;
+  /** 关联菜谱 id；手写菜无 */
+  recipeId?: string;
+  /** 菜品名（库菜取菜谱名快照，手写菜取输入值） */
+  dishName: string;
+  /** 库菜封面快照；手写菜无 */
+  cover?: string;
+  /** 时间标签 */
+  timeTag: OrderTimeTag;
+  /** 点菜人 */
+  requesterId: string;
+  /** 被@的指派人；空 = 公开求菜（婉拒后也清空） */
+  assigneeId?: string;
+  /** 认领人（实际做饭人） */
+  claimerId?: string;
+  status: DishOrderStatus;
+  /** 完成时关联的做菜记录 id */
+  logId?: string;
+  /** 创建时间（YYYY-MM-DD HH:mm） */
+  createdAt: string;
+}
+
+/** 群聊消息类型：文字 / 点菜卡片 / 系统提示 */
+export type ChatMessageType = 'text' | 'order' | 'system';
+
+/** 群聊消息 */
+export interface ChatMessage {
+  id: string;
+  type: ChatMessageType;
+  /** 发送人；system 无 */
+  senderId?: string;
+  /** text：文字内容；system：最终提示文案 */
+  text?: string;
+  /** order：关联的点菜 id */
+  orderId?: string;
+  /** 发送时间（YYYY-MM-DD HH:mm） */
+  createdAt: string;
+}
+
 /** 做菜记录：做完一道菜的流水；不关联菜谱时即"随手记" */
 export interface CookingLog {
   id: string;
@@ -92,6 +150,10 @@ export interface CookingLog {
   versionName?: string;
   /** 备注（可空） */
   note: string;
+  /** 完成时刻（YYYY-MM-DD HH:mm）；引导页"完成"打卡时自动写入，可缺省 */
+  completedAt?: string;
+  /** 做饭人（群聊点菜完成打卡时写入；旧预置数据无此字段） */
+  cookMemberId?: string;
   /** 本次做菜人数（可选） */
   servings?: number;
   /** 本次配方副本（关联菜谱时才有） */

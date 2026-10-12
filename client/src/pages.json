@@ -31,6 +31,18 @@
 			}
 		},
 		{
+			"path": "pages/chat/index",
+			"style": {
+				"navigationBarTitleText": "厨房群"
+			}
+		},
+		{
+			"path": "pages/chat-info/index",
+			"style": {
+				"navigationBarTitleText": "群信息"
+			}
+		},
+		{
 			"path": "pages/cooking-log-list/index",
 			"style": {
 				"navigationBarTitleText": "记录"
@@ -96,6 +108,12 @@
 				"text": "反查",
 				"iconPath": "static/tabbar/search.png",
 				"selectedIconPath": "static/tabbar/search-active.png"
+			},
+			{
+				"pagePath": "pages/chat/index",
+				"text": "厨房群",
+				"iconPath": "static/tabbar/chat.png",
+				"selectedIconPath": "static/tabbar/chat-active.png"
 			},
 			{
 				"pagePath": "pages/cooking-log-list/index",

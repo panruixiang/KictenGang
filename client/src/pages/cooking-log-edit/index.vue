@@ -2,17 +2,19 @@
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import Chip from '@/components/Chip.vue';
+import MemberAvatar from '@/components/MemberAvatar.vue';
 import NavBar from '@/components/NavBar.vue';
 import { getRecipeIngredients } from '@/mock/recipes';
-import { addLog, getLogById, getRecipeById } from '@/store';
+import { addLog, getLogById, getMember, getRecipeById, store, updateLog } from '@/store';
 import type { CookingLog, IngredientGroup, Recipe } from '@/types';
-import { formatLogDate, todayISO } from '@/utils/date';
+import { formatCompletedAt, formatLogDate, todayISO } from '@/utils/date';
 import { formatAmount } from '@/utils/servings';
 
 /**
- * 记一笔（做菜记录编辑）· 工单 05
- * - 编辑态：从"做菜引导"进入，带菜谱 / 人数 / 版本；可就地改"本次配方"、保存进记录
- * - 只读态：带 recordId 进入（记录列表点开的完整浏览），复用同一套排版
+ * 记一笔（做菜记录编辑）· 工单 05 / 工单 15
+ * - 新建态：从"做菜引导 → 记一笔"进入，带菜谱 / 人数 / 版本；可就地改"本次配方"、保存新建
+ * - 补全态（mode=edit）：引导页先点"完成"落了最简记录，再带 recordId 进来补备注 / 配方，保存更新同一条
+ * - 只读态：带 recordId（无 mode=edit）进入（记录列表点开的完整浏览），复用同一套排版
  */
 
 /** 本次配方的一行（编辑态内部结构） */
@@ -30,6 +32,8 @@ interface LogRow {
 const readonly = ref(false);
 /** 只读态：浏览的记录 */
 const record = ref<CookingLog | null>(null);
+/** 编辑态：正在补全的已存在记录 id（引导页"完成"打卡后进入；'' = 新建态） */
+const editId = ref('');
 
 /* ===== 编辑态字段 ===== */
 const recipe = ref<Recipe | null>(null);
@@ -56,6 +60,19 @@ const versionName = computed(() => versionOptions.value.find((v) => v.id === act
 
 onLoad((query) => {
   const recordId = String(query?.recordId ?? '');
+  const mode = String(query?.mode ?? '');
+
+  // 补全态：引导页"完成"已落最简记录，带 recordId + mode=edit 进来补同一条
+  if (recordId && mode === 'edit') {
+    const existing = getLogById(recordId);
+    if (existing) {
+      editId.value = existing.id;
+      hydrateFromLog(existing);
+    }
+    return;
+  }
+
+  // 只读态：记录列表点开的完整浏览
   if (recordId) {
     readonly.value = true;
     record.value = getLogById(recordId) ?? null;
@@ -73,6 +90,47 @@ onLoad((query) => {
   activeVersionId.value = options.some((v) => v.id === version) ? version : (options[0]?.id ?? '');
   rebuildRows();
 });
+
+/**
+ * 补全态回填：用已存在的最简记录填充表单（Q30）
+ * - 记录自带本次配方 → 按行回填（保留"这次改过"标记）
+ * - 完成打卡的最简记录（无配方）→ 按菜谱 + 人数重新生成配方行
+ * - completedAt 不在表单暴露，保存时原样保留
+ */
+function hydrateFromLog(existing: CookingLog) {
+  date.value = existing.date;
+  note.value = existing.note ?? '';
+  const found = existing.recipeId ? getRecipeById(existing.recipeId) : undefined;
+  recipe.value = found ?? null;
+  targetServings.value = existing.servings && existing.servings > 0 ? existing.servings : (found?.servings ?? 2);
+
+  if (!found) {
+    activeVersionId.value = '';
+    rows.value = [];
+    return;
+  }
+
+  // 版本名 → 版本 id：自家菜按名匹配；内置菜占住"默认版"占位项
+  if (found.versions?.length) {
+    activeVersionId.value = found.versions.find((v) => v.name === existing.versionName)?.id ?? '';
+  } else {
+    activeVersionId.value = 'default';
+  }
+
+  if (existing.ingredients?.length) {
+    rows.value = existing.ingredients.map((ing) => ({
+      name: ing.name,
+      group: ing.group,
+      unit: ing.unit,
+      amount: ing.amount,
+      // 回填行无原始用量可比，基准取当前值；用户再改时按新基准重判 changed
+      original: ing.amount,
+      changed: ing.changed ?? false,
+    }));
+  } else {
+    rebuildRows();
+  }
+}
 
 /**
  * 生成"本次配方"副本：按本次人数换算后的用量
@@ -146,10 +204,9 @@ function commitEdit() {
   editingIndex.value = -1;
 }
 
-/** 保存 → 写入记录 store → 进记录列表 */
+/** 保存：补全态更新同一条（completedAt 等未改字段保留）；新建态写入新记录 → 进记录列表 */
 function save() {
-  const log: CookingLog = {
-    id: `log-${Date.now()}`,
+  const patch = {
     date: date.value,
     recipeId: recipe.value?.id,
     recipeName: recipe.value?.name,
@@ -166,7 +223,12 @@ function save() {
         }))
       : undefined,
   };
-  addLog(log);
+
+  if (editId.value) {
+    updateLog(editId.value, patch);
+  } else {
+    addLog({ id: `log-${Date.now()}`, ...patch });
+  }
   uni.switchTab({ url: '/pages/cooking-log-list/index' });
 }
 
@@ -174,6 +236,19 @@ function save() {
 function recordAmountText(row: { amount: number | null; unit: string | null }): string {
   if (row.amount === null) return '适量';
   return `${formatAmount(row.amount)}${row.unit ?? ''}`;
+}
+
+/**
+ * 只读态：关联菜谱仍存在时给出"编辑这道菜"入口（Q31）
+ * 随手记（无 recipeId）或菜谱已删除（无主记录）→ 不显示，避免死链
+ */
+const linkedRecipe = computed(() =>
+  readonly.value && record.value?.recipeId ? getRecipeById(record.value.recipeId) : undefined,
+);
+
+function goEditRecipe() {
+  const id = record.value?.recipeId;
+  if (id) uni.navigateTo({ url: `/pages/recipe-form/index?id=${id}` });
 }
 </script>
 
@@ -195,6 +270,26 @@ function recordAmountText(row: { amount: number | null; unit: string | null }): 
               {{ record.recipeName ?? '随手记（未关联菜谱）' }}
             </text>
           </view>
+          <view v-if="record.completedAt" class="row">
+            <text class="row__label">完成时间</text>
+            <text class="row__plain">{{ formatCompletedAt(record.completedAt) }}</text>
+          </view>
+          <!-- 做饭人（群聊点菜完成打卡的记录才有；旧记录无此行） -->
+          <view v-if="record.cookMemberId" class="row">
+            <text class="row__label">做饭人</text>
+            <view class="row__cook">
+              <MemberAvatar :member-id="record.cookMemberId" :size="36" />
+              <text class="row__plain">
+                {{ record.cookMemberId === store.currentMemberId ? '我' : getMember(record.cookMemberId).name }}
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 关联菜谱仍存在时：可直接去优化这道菜的做法（Q31） -->
+        <view v-if="linkedRecipe" class="link-row" @tap="goEditRecipe">
+          <text class="link-row__text">编辑这道菜</text>
+          <image class="link-row__arrow" src="/static/icons/chevron-right.png" mode="aspectFit" />
         </view>
 
         <view v-if="record.versionName" class="section">
@@ -407,6 +502,19 @@ function recordAmountText(row: { amount: number | null; unit: string | null }): 
   color: $c-text;
 }
 
+/* 做饭人行：头像 + 名字靠右 */
+.row__cook {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.row__cook .row__plain {
+  flex: 0;
+  margin-left: 10rpx;
+}
+
 .row__plain--muted {
   color: $c-text-muted;
 }
@@ -532,5 +640,31 @@ function recordAmountText(row: { amount: number | null; unit: string | null }): 
   margin-left: 10rpx;
   font-size: 28rpx;
   color: $c-text;
+}
+
+/* 只读态："编辑这道菜"入口行（Q31） */
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background-color: $c-card;
+  box-shadow: 0 4rpx 20rpx rgba(31, 27, 22, 0.04);
+
+  &:active {
+    opacity: 0.94;
+  }
+}
+
+.link-row__text {
+  font-size: 28rpx;
+  color: $c-primary;
+}
+
+.link-row__arrow {
+  width: 28rpx;
+  height: 28rpx;
 }
 </style>

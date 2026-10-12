@@ -2,8 +2,8 @@
 import type { Recipe } from '@/types';
 
 /**
- * 菜谱卡：封面 + 菜名 + 菜系标签 + 耗时 + 难度 + 右上角收藏心形
- * 值传递：recipe + favorited；点卡片 / 点心形分别向上抛事件
+ * 菜谱卡：封面 + 菜名（含"做过 N 次"）+ 菜系标签 + 耗时 + 难度 + 右上角收藏心形
+ * 值传递：recipe + favorited + cookedCount；点击 / 长按 / 心形分别向上抛事件（Q31 长按出操作菜单）
  */
 withDefaults(
   defineProps<{
@@ -11,23 +11,23 @@ withDefaults(
     recipe: Recipe;
     /** 是否已收藏 */
     favorited?: boolean;
+    /** 做过的次数（Q30）：> 0 时在菜名右侧显淡色小标记；不传 / 0 不渲染 */
+    cookedCount?: number;
   }>(),
-  { favorited: false },
+  { favorited: false, cookedCount: 0 },
 );
 
 const emit = defineEmits<{
   (e: 'tap'): void;
+  (e: 'long-press'): void;
   (e: 'toggle-favorite'): void;
 }>();
 </script>
 
 <template>
-  <view class="card" @tap="emit('tap')">
+  <view class="card" @tap="emit('tap')" @longpress="emit('long-press')">
     <view class="card__cover-wrap">
       <image class="card__cover" :src="recipe.cover" mode="aspectFill" />
-      <view class="card__badge" :class="recipe.isBuiltin ? 'card__badge--builtin' : 'card__badge--own'">
-        <text>{{ recipe.isBuiltin ? '内置' : '我家' }}</text>
-      </view>
       <view class="card__fav" @tap.stop="emit('toggle-favorite')">
         <image
           class="card__fav-icon"
@@ -37,7 +37,10 @@ const emit = defineEmits<{
       </view>
     </view>
     <view class="card__body">
-      <text class="card__name">{{ recipe.name }}</text>
+      <view class="card__title-row">
+        <text class="card__name">{{ recipe.name }}</text>
+        <text v-if="cookedCount > 0" class="card__cooked">做过 {{ cookedCount }} 次</text>
+      </view>
       <view class="card__meta">
         <text class="card__cuisine">{{ recipe.cuisine }}</text>
         <text class="card__dot">·</text>
@@ -45,7 +48,6 @@ const emit = defineEmits<{
         <text class="card__dot">·</text>
         <text>{{ recipe.difficulty }}</text>
       </view>
-      <text v-if="recipe.source" class="card__source">{{ recipe.source }}</text>
     </view>
   </view>
 </template>
@@ -73,27 +75,6 @@ const emit = defineEmits<{
   height: 100%;
 }
 
-/* 左上角：内置 / 我家 角标 */
-.card__badge {
-  position: absolute;
-  top: 20rpx;
-  left: 20rpx;
-  padding: 6rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  line-height: 1.3;
-}
-
-.card__badge--builtin {
-  background-color: rgba(31, 27, 22, 0.42);
-  color: #ffffff;
-}
-
-.card__badge--own {
-  background-color: $c-primary;
-  color: #ffffff;
-}
-
 /* 右上角：收藏心形 */
 .card__fav {
   position: absolute;
@@ -117,10 +98,24 @@ const emit = defineEmits<{
   padding: 24rpx 28rpx 28rpx;
 }
 
+/* 菜名行：名称 + 右侧"做过 N 次"淡色小标记（Q30） */
+.card__title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
 .card__name {
   font-size: 34rpx;
   font-weight: 600;
   color: $c-text;
+}
+
+.card__cooked {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  color: $c-text-muted;
 }
 
 .card__meta {
@@ -143,11 +138,5 @@ const emit = defineEmits<{
 .card__dot {
   margin: 0 10rpx;
   color: #c9c0b5;
-}
-
-.card__source {
-  margin-top: 10rpx;
-  font-size: 22rpx;
-  color: $c-text-muted;
 }
 </style>

@@ -1,6 +1,28 @@
 <script setup lang="ts">
 // 纯前端静态页面版本：全局初始化留白
 // （后续接微信云开发时，登录 / 当前空间加载等逻辑放在这里）
+import { onLaunch } from '@dcloudio/uni-app';
+import { getUnread, store } from '@/store';
+
+// 启动时按当前空间未读数给"厨房群"tab（index=2，中间格）挂红点
+function showUnreadBadge() {
+  const unread = getUnread(store.spaceName);
+  if (unread > 0) {
+    uni.setTabBarBadge({
+      index: 2,
+      text: String(unread),
+      fail: () => {
+        /* 平台不支持或时机过早时静默 */
+      },
+    });
+  }
+}
+
+onLaunch(() => {
+  showUnreadBadge();
+  // H5 端 tabBar 偶尔晚于 onLaunch 就绪，延迟再幂等挂一次
+  setTimeout(showUnreadBadge, 500);
+});
 </script>
 
 <style lang="scss">
