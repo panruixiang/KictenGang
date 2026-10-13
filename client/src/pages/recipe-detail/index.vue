@@ -2,10 +2,12 @@
 import { computed, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import Chip from '@/components/Chip.vue';
-import { getRecipeById } from '@/store';
+import { getCookedStats, getRecipeById } from '@/store';
 import { getRecipeIngredients } from '@/mock/recipes';
 import type { Recipe } from '@/types';
+import { formatCompletedAt, formatLogDate } from '@/utils/date';
 import { scaleAmount, SERVING_OPTIONS } from '@/utils/servings';
+import { confirmDeleteRecipe } from '@/utils/recipe-actions';
 
 /** 配料分组展示顺序 */
 const GROUPS = ['主料', '辅料', '调味料'] as const;
@@ -26,6 +28,16 @@ onLoad((query) => {
 
 /** 当前版本下的配料 */
 const ingredients = computed(() => (recipe.value ? getRecipeIngredients(recipe.value, activeVersionId.value) : []));
+
+/** 做过统计（Q30：次数 / 最近一次由记录流水实时聚合，从引导页返回即刷新） */
+const stats = computed(() => (recipe.value ? getCookedStats(recipe.value.id) : { count: 0 }));
+
+/** 最近一次文案：有完成时刻带几点，否则只显日期 */
+const lastCookedText = computed(() => {
+  const last = stats.value.lastLog;
+  if (!last) return '';
+  return last.completedAt ? formatCompletedAt(last.completedAt) : formatLogDate(last.date);
+});
 
 /** 按 主料 / 辅料 / 调味料 分组，并带上换算后的用量 */
 const groupedIngredients = computed(() =>
@@ -52,6 +64,13 @@ function goEdit() {
   uni.navigateTo({ url: `/pages/recipe-form/index?id=${recipe.value?.id ?? ''}` });
 }
 
+/** 删除（Q31）：二次确认后返回上一页（历史做菜记录由 store 保留） */
+function onDelete() {
+  const r = recipe.value;
+  if (!r) return;
+  confirmDeleteRecipe(r, goBack);
+}
+
 function startCooking() {
   const r = recipe.value;
   if (!r) return;
@@ -73,14 +92,18 @@ function startCooking() {
     </view>
 
     <view class="body">
-      <!-- 菜名 / 来源 / 编辑入口 -->
+      <!-- 菜名 / 编辑 / 删除（Q31：所有菜谱一致） -->
       <view class="title-row">
         <view class="title-row__main">
           <text class="title">{{ recipe.name }}</text>
-          <text v-if="recipe.source" class="source">{{ recipe.source }}</text>
         </view>
-        <view v-if="!recipe.isBuiltin" class="edit" @tap="goEdit">
-          <text>编辑</text>
+        <view class="title-actions">
+          <view class="edit" @tap="goEdit">
+            <text>编辑</text>
+          </view>
+          <view class="delete" @tap="onDelete">
+            <text>删除</text>
+          </view>
         </view>
       </view>
 
@@ -90,6 +113,11 @@ function startCooking() {
         <text class="meta__item">{{ recipe.durationMin }} 分钟</text>
         <text class="meta__dot">·</text>
         <text class="meta__item">{{ recipe.difficulty }}</text>
+      </view>
+
+      <!-- 做过统计（Q30；从未做过不显示，不显"0 次"） -->
+      <view v-if="stats.count > 0" class="cooked">
+        <text class="cooked__text">做过 {{ stats.count }} 次 · 最近一次 {{ lastCookedText }}</text>
       </view>
 
       <!-- 版本切换（仅自家菜） -->
@@ -215,21 +243,29 @@ function startCooking() {
   color: $c-text;
 }
 
-.source {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: $c-text-muted;
+/* 标题行右侧操作：编辑（主色描边）/ 删除（危险红描边） */
+.title-actions {
+  flex-shrink: 0;
+  display: flex;
+  margin-left: 24rpx;
+}
+
+.edit,
+.delete {
+  padding: 8rpx 28rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
 }
 
 .edit {
-  flex-shrink: 0;
-  margin-left: 24rpx;
-  padding: 8rpx 28rpx;
   border: 1px solid $c-primary;
-  border-radius: 999rpx;
   color: $c-primary;
-  font-size: 24rpx;
+}
+
+.delete {
+  margin-left: 16rpx;
+  border: 1px solid rgba(224, 49, 49, 0.5);
+  color: #e03131;
 }
 
 .meta {
@@ -255,6 +291,16 @@ function startCooking() {
 .meta__dot {
   margin: 0 12rpx;
   color: #c9c0b5;
+}
+
+/* 做过统计（Q30） */
+.cooked {
+  margin-top: 14rpx;
+}
+
+.cooked__text {
+  font-size: 24rpx;
+  color: $c-text-muted;
 }
 
 .section {

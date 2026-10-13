@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import Chip from '@/components/Chip.vue';
+import MemberAvatar from '@/components/MemberAvatar.vue';
 import { mockFlags } from '@/mock/config';
-import { store } from '@/store';
+import { getMember, store } from '@/store';
 import type { CookingLog } from '@/types';
 import { formatLogDate } from '@/utils/date';
 
@@ -38,6 +39,14 @@ const groups = computed(() => {
 function open(log: CookingLog) {
   uni.navigateTo({ url: `/pages/cooking-log-edit/index?recordId=${log.id}` });
 }
+
+/** 做饭人归属文案：自己 → 我 做的；别人 → XX 做的；旧记录无归属返回空 */
+function cookText(log: CookingLog): string {
+  if (!log.cookMemberId) return '';
+  return log.cookMemberId === store.currentMemberId
+    ? '我 做的'
+    : `${getMember(log.cookMemberId).name} 做的`;
+}
 </script>
 
 <template>
@@ -62,6 +71,11 @@ function open(log: CookingLog) {
             <text class="log__date">{{ formatLogDate(log.date) }}</text>
             <text class="log__name">{{ log.recipeName ?? '随手记' }}</text>
             <text v-if="log.versionName" class="log__ver">{{ log.versionName }}</text>
+            <!-- 做饭人归属（群聊点菜完成打卡的记录才有） -->
+            <view v-if="log.cookMemberId" class="log__cook">
+              <MemberAvatar :member-id="log.cookMemberId" :size="36" />
+              <text class="log__cook-text">{{ cookText(log) }}</text>
+            </view>
           </view>
           <text v-if="log.note" class="log__note">{{ log.note }}</text>
         </view>
@@ -78,6 +92,10 @@ function open(log: CookingLog) {
             <view class="log__top">
               <text class="log__date">{{ formatLogDate(log.date) }}</text>
               <text v-if="log.versionName" class="log__ver">{{ log.versionName }}</text>
+              <view v-if="log.cookMemberId" class="log__cook">
+                <MemberAvatar :member-id="log.cookMemberId" :size="36" />
+                <text class="log__cook-text">{{ cookText(log) }}</text>
+              </view>
             </view>
             <text v-if="log.note" class="log__note">{{ log.note }}</text>
           </view>
@@ -158,6 +176,20 @@ function open(log: CookingLog) {
   background-color: $c-primary-soft;
   color: $c-primary;
   font-size: 22rpx;
+}
+
+/* 做饭人归属（右侧：小头像 + 谁做的） */
+.log__cook {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.log__cook-text {
+  margin-left: 10rpx;
+  font-size: 22rpx;
+  color: $c-text-muted;
+  white-space: nowrap;
 }
 
 /* 备注摘要：单行截断 */

@@ -3,7 +3,7 @@ import { computed, onUnmounted, ref } from 'vue';
 import { onLoad, onUnload } from '@dcloudio/uni-app';
 import Chip from '@/components/Chip.vue';
 import NavBar from '@/components/NavBar.vue';
-import { getRecipeById } from '@/store';
+import { addQuickLog, completeOrder, getCookedStats, getOrder, getRecipeById, store } from '@/store';
 import { getRecipeIngredients } from '@/mock/recipes';
 import type { Recipe } from '@/types';
 import { scaleAmount, SERVING_OPTIONS } from '@/utils/servings';
@@ -30,12 +30,40 @@ const timers = ref<Record<number, StepTimer>>({});
 
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * 本次引导会话的留痕状态（Q30 完成打卡）：
+ * - quickLogId 非空 = 已点"完成"，再点"记一笔"应编辑同一条
+ * - sessionLogged = 本次已留过痕（完成或已跳记一笔），禁止重复打卡
+ */
+const quickLogId = ref('');
+const sessionLogged = ref(false);
+/**
+ * 群聊点菜联动（工单 05）：
+ * - linkedOrderId 非空 = 本次做菜由点菜卡"开始做"进入
+ * - linkedCookMemberId 非空 = 订单处于 claimed 且认领人是我，完成打卡要回写订单并给记录写做饭人
+ * 非法 orderId（不存在 / done / cancelled / 认领人不是我）一律按普通做菜处理
+ */
+const linkedOrderId = ref('');
+const linkedCookMemberId = ref('');
+/** "完成"toast 后延迟返回的定时器（中途跳记一笔时要取消） */
+let backTimer: ReturnType<typeof setTimeout> | null = null;
+
 onLoad((query) => {
   const found = getRecipeById(String(query?.id ?? ''));
   recipe.value = found ?? null;
   const servings = Number(query?.servings);
   targetServings.value = SERVING_OPTIONS.includes(servings) ? servings : (found?.servings ?? 2);
   activeVersionId.value = String(query?.version ?? '') || (found?.versions?.[0]?.id ?? '');
+
+  // 点菜卡"开始做"带入的订单：仅 claimed 且认领人=当前成员时才成立联动
+  const orderId = String(query?.orderId ?? '');
+  if (orderId) {
+    const linked = getOrder(orderId);
+    if (linked && linked.status === 'claimed' && linked.claimerId === store.currentMemberId) {
+      linkedOrderId.value = orderId;
+      linkedCookMemberId.value = linked.claimerId;
+    }
+  }
 
   // 做菜中保持屏幕常亮（H5 端不支持，忽略）
   // #ifndef H5
@@ -45,6 +73,10 @@ onLoad((query) => {
 
 onUnload(() => {
   stopTick();
+  if (backTimer) {
+    clearTimeout(backTimer);
+    backTimer = null;
+  }
   // 离开引导页时恢复系统默认常亮设置（H5 端不支持，忽略）
   // #ifndef H5
   uni.setKeepScreenOn({ keepScreenOn: false });
@@ -144,10 +176,67 @@ function formatClock(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** 全部做完 → 去记一笔（带上菜谱 / 人数 / 版本） */
+/** 当前版本名（打卡 / 记一笔带上；自家菜按 id 取名，内置菜给"默认版"，与记一笔页口径一致） */
+const versionName = computed(() => {
+  const r = recipe.value;
+  if (!r) return '';
+  if (r.versions?.length) return r.versions.find((v) => v.id === activeVersionId.value)?.name ?? '';
+  return '默认版';
+});
+
+/**
+ * "完成"一键打卡（Q30）：落一条最简记录 → toast"第 N 次" → 返回详情页
+ * 同一次做菜只留一条：已留痕（完成过 / 已跳记一笔）时只提示不新建
+ */
+function onComplete() {
+  const r = recipe.value;
+  if (!r) return;
+  if (sessionLogged.value) {
+    uni.showToast({ title: '这次已经记过啦', icon: 'none' });
+    return;
+  }
+  // 第几次 = 插入前同菜记录数 + 1
+  const nth = getCookedStats(r.id).count + 1;
+  const log = addQuickLog({
+    recipe: r,
+    versionName: versionName.value || undefined,
+    servings: targetServings.value,
+    // 群聊点菜联动：记录归属认领人（即当前成员）
+    cookMemberId: linkedCookMemberId.value || undefined,
+  });
+  quickLogId.value = log.id;
+  sessionLogged.value = true;
+  // 点菜联动：用同一条记录回写订单为 done（existingLogId 路径不再落第二条记录，
+  // 群聊自动出现完成系统提示；completeOrder 内部对已 done 幂等）
+  if (linkedOrderId.value) {
+    completeOrder(linkedOrderId.value, log.id);
+  }
+  uni.showToast({ title: `已记下 · 第 ${nth} 次做这道菜`, icon: 'none', duration: 1400 });
+  backTimer = setTimeout(() => {
+    backTimer = null;
+    uni.navigateBack();
+  }, 1400);
+}
+
+/**
+ * "记一笔"两路（一次做菜只产生一条记录）：
+ * - 已点"完成" → 带记录 id 进编辑态，补的是同一条
+ * - 未点完成 → 维持原新建路径，并占住会话，防止返回后重复打卡
+ */
 function goLog() {
   const r = recipe.value;
   if (!r) return;
+  if (backTimer) {
+    clearTimeout(backTimer);
+    backTimer = null;
+  }
+  if (quickLogId.value) {
+    uni.navigateTo({
+      url: `/pages/cooking-log-edit/index?recordId=${quickLogId.value}&mode=edit`,
+    });
+    return;
+  }
+  sessionLogged.value = true;
   const version = activeVersionId.value ? `&version=${activeVersionId.value}` : '';
   uni.navigateTo({
     url: `/pages/cooking-log-edit/index?id=${r.id}&servings=${targetServings.value}${version}`,
@@ -245,9 +334,13 @@ function goLog() {
       </view>
     </view>
 
-    <!-- 步骤全部完成后出现 -->
-    <view v-if="allDone" class="footer">
-      <button class="btn-primary" @tap="goLog">记一笔</button>
+    <!-- 收尾操作常驻：完成（一键打卡）/ 记一笔（补细节）；全部勾选时给轻提示 -->
+    <view class="footer">
+      <text v-if="allDone" class="done-hint">全部步骤已完成</text>
+      <view class="footer__btns">
+        <button class="btn-secondary footer__complete" @tap="onComplete">完成</button>
+        <button class="btn-primary footer__log" @tap="goLog">记一笔</button>
+      </view>
     </view>
   </view>
 </template>
@@ -467,5 +560,28 @@ function goLog() {
   font-size: 26rpx;
   font-weight: 600;
   color: $c-primary;
+}
+
+/* 全部步骤完成的轻提示（不阻断操作） */
+.done-hint {
+  display: block;
+  margin-bottom: 16rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: $c-primary;
+}
+
+/* 底部双按钮：完成（次）/ 记一笔（主），比例沿用录入表单 */
+.footer__btns {
+  display: flex;
+}
+
+.footer__complete {
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.footer__log {
+  flex: 2;
 }
 </style>

@@ -1,32 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { store } from '@/store';
-
 /**
  * 我的（tabBar"我的"）· 工单 13
  * - 空间卡：当前空间 + 成员头像组 + 邀请家人（弹出微信分享卡片样式）
  * - 入口行：我的收藏 / 我的记录 / 常备食材 / 切换空间（两个示例空间）
  * - 分享卡片点开 = 预览家人打开后的样子（进"加入确认"屏）
+ * - 成员头像组数据源为 store.members（工单 01 起全项目唯一来源）
  */
-
-/** 空间成员（原型示例：彩色圆 + 首字） */
-const MEMBERS = [
-  { name: '老张', initial: '张', color: '#E8590C' },
-  { name: '李姐', initial: '李', color: '#C2255C' },
-  { name: '王叔', initial: '王', color: '#2F9E44' },
-  { name: '豆豆', initial: '豆', color: '#E8A13C' },
-];
+import { ref } from 'vue';
+import MemberAvatar from '@/components/MemberAvatar.vue';
+import { getMembers, getUnread, store } from '@/store';
 
 /** 示例空间（切换示意） */
 const SPACES = ['老张家的厨房', '李姐家的厨房'];
 
+/** 空间成员（彩色圆 + 首字） */
+const members = getMembers();
+
 const spaceOpen = ref(false);
 const shareOpen = ref(false);
 
-/** 切换空间 */
+/** 切换空间：同步刷新厨房群 tab（index=2）未读红点 */
 function pickSpace(space: string) {
   store.spaceName = space;
   spaceOpen.value = false;
+  const unread = getUnread(space);
+  if (unread > 0) {
+    uni.setTabBarBadge({ index: 2, text: String(unread), fail: () => {} });
+  } else {
+    uni.removeTabBarBadge({ index: 2, fail: () => {} });
+  }
 }
 
 function goFavorites() {
@@ -67,10 +69,8 @@ function goJoin() {
           <view class="space-card__invite" @tap="shareOpen = true">邀请家人</view>
         </view>
         <view class="space-card__members">
-          <view v-for="m in MEMBERS" :key="m.name" class="avatar" :style="{ backgroundColor: m.color }">
-            <text class="avatar__char">{{ m.initial }}</text>
-          </view>
-          <text class="space-card__count">{{ MEMBERS.length }} 位家人</text>
+          <MemberAvatar v-for="m in members" :key="m.id" class="space-card__avatar" :member-id="m.id" :size="60" />
+          <text class="space-card__count">{{ members.length }} 位家人</text>
         </view>
       </view>
 
@@ -193,21 +193,10 @@ function goJoin() {
   margin-top: 26rpx;
 }
 
-/* 成员头像：彩色圆 + 首字 */
-.avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60rpx;
-  height: 60rpx;
+/* 成员头像：复用 MemberAvatar，这里只做叠压与白边 */
+.space-card__avatar {
   margin-right: -14rpx;
   border: 3rpx solid $c-card;
-  border-radius: 50%;
-}
-
-.avatar__char {
-  color: #ffffff;
-  font-size: 24rpx;
 }
 
 .space-card__count {

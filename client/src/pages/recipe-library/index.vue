@@ -3,8 +3,9 @@ import { computed, ref } from 'vue';
 import Chip from '@/components/Chip.vue';
 import RecipeCard from '@/components/RecipeCard.vue';
 import { mockFlags } from '@/mock/config';
-import { getAllRecipes, isFavorite, store, toggleFavorite } from '@/store';
+import { getAllRecipes, getCookedStats, isFavorite, store, toggleFavorite } from '@/store';
 import type { Recipe } from '@/types';
+import { showRecipeCardActions } from '@/utils/recipe-actions';
 
 /** 菜系筛选档位（"全部"默认选中） */
 const CUISINES = ['全部', '川', '粤', '浙', '家常'];
@@ -43,6 +44,11 @@ function goDetail(recipe: Recipe) {
 
 function goCreate() {
   uni.navigateTo({ url: '/pages/recipe-form/index' });
+}
+
+/** 长按卡片：编辑 / 删除菜单（Q31；列表为响应式数据，删除后卡片自动消失） */
+function onCardLongPress(recipe: Recipe) {
+  showRecipeCardActions(recipe);
 }
 </script>
 
@@ -95,7 +101,9 @@ function goCreate() {
           class="list__item"
           :recipe="r"
           :favorited="isFavorite(r.id)"
+          :cooked-count="getCookedStats(r.id).count"
           @tap="goDetail(r)"
+          @long-press="onCardLongPress(r)"
           @toggle-favorite="toggleFavorite(r.id)"
         />
       </view>

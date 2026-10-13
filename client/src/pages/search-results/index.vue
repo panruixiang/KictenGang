@@ -4,13 +4,14 @@ import NavBar from '@/components/NavBar.vue';
 import RecipeCard from '@/components/RecipeCard.vue';
 import { getAllRecipes, isFavorite, searchCheckedNames, toggleFavorite } from '@/store';
 import type { Recipe } from '@/types';
+import { showRecipeCardActions } from '@/utils/recipe-actions';
 
 /**
  * 反查结果 · 工单 08
  * 规则（真实计算，随时跟随勾选变化）：
  * - 调味料一律视为有（家里默认）
  * - 一道菜入选 = 它的全部 主料 + 辅料 都在已勾选集合里
- * - 内置菜与自家菜各自成卡（番茄炒蛋会出现两张）
+ * - 同名菜的不同版本各自成卡（番茄炒蛋会出现两张）
  */
 
 /** 当前勾选（读 store，与反查页同源 → 回退调整后自动刷新） */
@@ -26,6 +27,11 @@ const results = computed(() => {
 
 function goDetail(recipe: Recipe) {
   uni.navigateTo({ url: `/pages/recipe-detail/index?id=${recipe.id}` });
+}
+
+/** 长按卡片：编辑 / 删除菜单（Q31；结果为响应式过滤，删除后卡片自动消失） */
+function onCardLongPress(recipe: Recipe) {
+  showRecipeCardActions(recipe);
 }
 </script>
 
@@ -47,6 +53,7 @@ function goDetail(recipe: Recipe) {
           :recipe="r"
           :favorited="isFavorite(r.id)"
           @tap="goDetail(r)"
+          @long-press="onCardLongPress(r)"
           @toggle-favorite="toggleFavorite(r.id)"
         />
       </view>

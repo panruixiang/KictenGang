@@ -125,4 +125,12 @@ function goResults() {
 .items__chip {
   margin: 0 16rpx 16rpx 0;
 }
+
+/* 本页是 tabBar 页面：底部操作条上移，让开 H5 端固定盖在视口底部的 tabBar
+   （--window-bottom = tabBar 高度；非 tabBar 页面为 0，小程序端无该变量走兜底 0） */
+.footer {
+  bottom: var(--window-bottom, 0);
+  /* 底部安全区已包含在 tabBar 高度里，这里不再叠加，否则按钮与 tabBar 之间会多出留白 */
+  padding-bottom: 20rpx;
+}
 </style>

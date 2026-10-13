@@ -37,7 +37,7 @@ const CUISINES = ['川', '粤', '浙', '家常', '其它'];
 const DIFFICULTIES = ['简单', '中等', '较难'];
 /** 单位表（Q29，与 00-总览约定一致） */
 const UNITS = ['g', 'ml', '个', '勺', '碗', '斤', '两', '根', '棵', '片', '块', '把'];
-/** 封面示例池："换一张"在既有封面里轮换（静态阶段不做真实上传，仅示意） */
+/** 封面示例池："换一张"在既有封面里轮换，也可以上传自己的图片 */
 const COVER_POOL = [
   '/static/cover/hongshao-rou.jpg',
   '/static/cover/gongbao-jiding.jpg',
@@ -121,6 +121,24 @@ onLoad((query) => {
 function changeCover() {
   const idx = COVER_POOL.indexOf(cover.value);
   cover.value = COVER_POOL[(idx + 1) % COVER_POOL.length];
+}
+
+/**
+ * 封面"上传图片"：从相册或拍照选一张作为封面
+ * 原型阶段只取本地临时路径直接预览（不落云存储；接微信云开发时这里换成上传换取 fileID）
+ */
+function chooseCover() {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (res) => {
+      const paths = Array.isArray(res.tempFilePaths) ? res.tempFilePaths : [res.tempFilePaths];
+      if (paths[0]) {
+        cover.value = paths[0];
+      }
+    },
+  });
 }
 
 /** 菜系 / 难度单选：选中的再点一次即取消（都不必填） */
@@ -301,10 +319,13 @@ function save() {
     <NavBar :title="pageTitle" close @close="closeForm" />
 
     <view class="body">
-      <!-- 封面图 + 换一张 -->
+      <!-- 封面图 + 换一张 / 上传图片 -->
       <view class="cover">
         <image class="cover__img" :src="cover" mode="aspectFill" />
-        <view class="cover__change" @tap="changeCover">换一张</view>
+        <view class="cover__acts">
+          <view class="cover__btn" @tap="changeCover">换一张</view>
+          <view class="cover__btn" @tap="chooseCover">上传图片</view>
+        </view>
       </view>
 
       <!-- 基本信息：名称 / 耗时 / 份量 -->
@@ -548,7 +569,7 @@ function save() {
   padding: 8rpx 32rpx 0;
 }
 
-/* 封面 + 换一张 */
+/* 封面 + 换一张 / 上传图片 */
 .cover {
   position: relative;
   width: 100%;
@@ -563,15 +584,23 @@ function save() {
   height: 100%;
 }
 
-.cover__change {
+.cover__acts {
   position: absolute;
   right: 20rpx;
   bottom: 20rpx;
+  display: flex;
+}
+
+.cover__btn {
   padding: 10rpx 26rpx;
   border-radius: 999rpx;
   background-color: rgba(31, 27, 22, 0.5);
   color: #ffffff;
   font-size: 24rpx;
+}
+
+.cover__btn + .cover__btn {
+  margin-left: 16rpx;
 }
 
 /* 通用行卡片 */

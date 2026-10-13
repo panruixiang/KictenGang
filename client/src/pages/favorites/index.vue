@@ -3,8 +3,9 @@ import { ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import NavBar from '@/components/NavBar.vue';
 import RecipeCard from '@/components/RecipeCard.vue';
-import { getRecipeById, isFavorite, store, toggleFavorite } from '@/store';
+import { getCookedStats, getRecipeById, isFavorite, store, toggleFavorite } from '@/store';
 import type { Recipe } from '@/types';
+import { showRecipeCardActions } from '@/utils/recipe-actions';
 
 /**
  * 我的收藏 · 工单 12
@@ -21,8 +22,26 @@ onLoad(() => {
     .filter((r): r is Recipe => !!r);
 });
 
+/** 快照里的菜可能已在别处（或本页长按）被删除：无存在性校验会进白屏详情 / 误成新建表单 */
+function ensureExists(recipe: Recipe): boolean {
+  if (getRecipeById(recipe.id)) return true;
+  uni.showToast({ title: '这道菜已被删除', icon: 'none' });
+  return false;
+}
+
 function goDetail(recipe: Recipe) {
+  if (!ensureExists(recipe)) return;
   uni.navigateTo({ url: `/pages/recipe-detail/index?id=${recipe.id}` });
+}
+
+/**
+ * 长按卡片：编辑 / 删除菜单（Q31）
+ * 本页列表是进入时的快照：删除后卡片沿用既有策略留在本页（心形因收藏被清而变空），
+ * 仅 toast 提示，下次进入按最新数据刷新
+ */
+function onCardLongPress(recipe: Recipe) {
+  if (!ensureExists(recipe)) return;
+  showRecipeCardActions(recipe);
 }
 </script>
 
@@ -35,7 +54,9 @@ function goDetail(recipe: Recipe) {
         <RecipeCard
           :recipe="r"
           :favorited="isFavorite(r.id)"
+          :cooked-count="getCookedStats(r.id).count"
           @tap="goDetail(r)"
+          @long-press="onCardLongPress(r)"
           @toggle-favorite="toggleFavorite(r.id)"
         />
       </view>
