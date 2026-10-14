@@ -27,6 +27,28 @@ import type {
 } from '@/types';
 import { shiftISODate, toISODateTime, todayISO } from '@/utils/date';
 
+/** 种子群聊消息只构建一次（同时作为各成员初始已读游标的计算基准） */
+const seedMessagesBySpace: Record<string, ChatMessage[]> = {
+  [SPACE_MAIN]: buildSeedMessages(),
+};
+
+/**
+ * 各成员在各空间的"已读到第几条"游标（成员 id -> 空间名 -> 已读消息条数）。
+ * 初始值 = 种子消息总数 - INITIAL_UNREAD：保证每位家人打开应用时都带着初始未读，
+ * 且别人之后新发的消息会自然落在游标之后、计入该成员的未读。
+ */
+function buildInitialReadCursors(): Record<string, Record<string, number>> {
+  const map: Record<string, Record<string, number>> = {};
+  MEMBERS.forEach((m) => {
+    map[m.id] = {};
+    Object.keys(INITIAL_UNREAD).forEach((space) => {
+      const total = seedMessagesBySpace[space]?.length ?? 0;
+      map[m.id][space] = Math.max(0, total - (INITIAL_UNREAD[space] ?? 0));
+    });
+  });
+  return map;
+}
+
 export const store = reactive({
   /** 当前空间名（"我的"页可切换示意） */
   spaceName: SPACE_MAIN,
@@ -35,7 +57,7 @@ export const store = reactive({
   /** 当前操作人 id（默认老张；群信息页可做原型演示切换） */
   currentMemberId: MEMBER_ZHANG,
   /** 各空间的群聊消息（按空间名分桶，正序：旧 → 新） */
-  messagesBySpace: { [SPACE_MAIN]: buildSeedMessages() } as Record<string, ChatMessage[]>,
+  messagesBySpace: seedMessagesBySpace as Record<string, ChatMessage[]>,
   /** 全部点菜（id -> 订单；消息只存 orderId 引用） */
   ordersById: buildSeedOrders().reduce(
     (map, order) => {
@@ -44,8 +66,11 @@ export const store = reactive({
     },
     {} as Record<string, DishOrder>,
   ),
-  /** 各空间未读数（进群聊页清零） */
-  unreadBySpace: { ...INITIAL_UNREAD } as Record<string, number>,
+  /**
+   * 未读模型：各成员在各空间的已读游标（已读到消息流第几条）。
+   * 未读数 = 游标之后、非本人发送的消息条数（getUnread 实时聚合，不存计数器）。
+   */
+  readCursorByMember: buildInitialReadCursors(),
   /** 全部菜谱（内置 + 自家，内存副本 —— 录入 / 编辑可就地改） */
   recipes: RECIPES.slice() as Recipe[],
   /** 收藏的菜谱 id（收藏为个人维度，各收各的） */
@@ -298,14 +323,30 @@ export function getMessages(spaceName: string = store.spaceName): ChatMessage[] 
   return store.messagesBySpace[spaceName] ?? [];
 }
 
-/** 取某空间未读数 */
-export function getUnread(spaceName: string = store.spaceName): number {
-  return store.unreadBySpace[spaceName] ?? 0;
+/**
+ * 某成员在某空间的未读数：已读游标之后、且不是该成员自己发的消息条数。
+ * 系统提示（无 senderId）与点菜卡都计入；自己发的任何内容不计入自己的未读。
+ */
+export function getUnread(
+  spaceName: string = store.spaceName,
+  memberId: string = store.currentMemberId,
+): number {
+  const list = store.messagesBySpace[spaceName] ?? [];
+  const cursor = store.readCursorByMember[memberId]?.[spaceName] ?? 0;
+  let count = 0;
+  for (let i = cursor; i < list.length; i += 1) {
+    if (list[i].senderId !== memberId) count += 1;
+  }
+  return count;
 }
 
-/** 进入群聊页：清当前空间未读（红点 API 由页面调用） */
+/** 进入群聊页：把当前成员在当前空间的已读游标推到最新（红点 API 由页面调用） */
 export function enterChatClearUnread(): void {
-  store.unreadBySpace[store.spaceName] = 0;
+  const memberId = store.currentMemberId;
+  if (!store.readCursorByMember[memberId]) store.readCursorByMember[memberId] = {};
+  store.readCursorByMember[memberId][store.spaceName] = (
+    store.messagesBySpace[store.spaceName] ?? []
+  ).length;
 }
 
 /** 切换"当前操作人"（仅群信息页原型演示用；非法 id 静默忽略） */

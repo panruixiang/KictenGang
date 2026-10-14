@@ -3,11 +3,23 @@
  * 群信息（普通页）· 工单 02
  * - 群信息卡：群名（当前空间）+ 成员头像叠压组 + 人数
  * - 成员列表：当前操作人所在行显"当前身份"tag
- * - 演示区（仅原型）：切换"我是谁"，切换后 toast 并返回群聊，气泡/按钮/记录归属全站即时换视角
+ * - 演示区（仅原型）：切换"我是谁"，切换后按新成员的真实未读（别人发、自己没看过的消息）
+ *   挂 tab 红点并落到"菜谱"tab；不自动进群（进群会立即把游标推到最新），
+ *   便于从 tabBar 验证未读提示后再点进群聊
  */
 import NavBar from '@/components/NavBar.vue';
 import MemberAvatar from '@/components/MemberAvatar.vue';
-import { setCurrentMember, store } from '@/store';
+import { getUnread, setCurrentMember, store } from '@/store';
+
+/** 按当前身份的未读数同步厨房群 tab（index=2）红点 */
+function syncUnreadBadge() {
+  const unread = getUnread(store.spaceName);
+  if (unread > 0) {
+    uni.setTabBarBadge({ index: 2, text: String(unread), fail: () => {} });
+  } else {
+    uni.removeTabBarBadge({ index: 2, fail: () => {} });
+  }
+}
 
 /** 切换演示身份 */
 function pickMember(id: string) {
@@ -18,9 +30,13 @@ function pickMember(id: string) {
   const target = store.members.find((m) => m.id === id);
   setCurrentMember(id);
   uni.showToast({ title: `已切换为${target?.name ?? ''}视角`, icon: 'none', duration: 900 });
-  setTimeout(() => {
-    uni.navigateBack();
-  }, 500);
+  // 落到其他 tab 而不是返回群聊：群聊 onShow 会立刻把已读游标推到最新，红点将无法验证。
+  // H5 端 switchTab 会重绘 tabBar，角标需在切换成功后挂，并延迟兜底再挂一次。
+  uni.switchTab({
+    url: '/pages/recipe-library/index',
+    success: syncUnreadBadge,
+  });
+  setTimeout(syncUnreadBadge, 500);
 }
 </script>
 

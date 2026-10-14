@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 家庭群聊（tabBar"厨房群"）
- * - 自绘顶部：群名（当前空间）+ 成员数 + 群信息入口（⋯）
+ * - 自绘顶部（群名 / 成员数 / 群信息入口 ⋯）固定在视口顶部，消息在其下方滚动时头部始终常驻
  * - 消息流：日期分隔行 + 文字气泡（左右按当前成员分列）+ 系统提示胶囊 + 点菜卡片
  * - 底部输入栏：+ 点菜（工单 03 起打开点菜面板）+ 文字发送
  * - onShow 清当前空间未读并移除 tabBar 红点（index=2，中间格）
@@ -29,6 +29,9 @@ import { formatChatDay } from '@/utils/date';
 
 /** 状态栏高度（小程序端留出安全区；H5 端为 0） */
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0;
+
+/** 固定头部总高度（状态栏 + 88rpx 标题栏），换算 px 给消息流顶部让位（不用魔法数） */
+const chatHeadHeight = `${statusBarHeight + uni.upx2px(88)}px`;
 
 /** 渲染行：消息 或 日期分隔 */
 interface ChatRow {
@@ -207,7 +210,7 @@ onShow(() => {
 
 <template>
   <view class="chat">
-    <!-- 自绘顶部 -->
+    <!-- 自绘顶部：固定在视口顶部，下方消息滚动时始终常驻 -->
     <view class="chat-head">
       <view :style="{ height: statusBarHeight + 'px' }" />
       <view class="chat-head__bar">
@@ -221,10 +224,10 @@ onShow(() => {
       </view>
     </view>
 
-    <!-- 消息流 -->
+    <!-- 消息流：内容 padding-top 让出固定头部高度，消息只在头部下方滚动 -->
     <scroll-view class="chat-body" scroll-y :scroll-into-view="scrollIntoId" :scroll-with-animation="true">
       <!-- 空态（无消息空间 / mockFlags.emptyChat 演示；首条内容发出后消失） -->
-      <view v-if="showEmpty" class="empty">
+      <view v-if="showEmpty" class="empty" :style="{ paddingTop: chatHeadHeight }">
         <view class="empty__ill">
           <view class="empty__bubble">
             <view class="empty__dot empty__dot--1" />
@@ -237,7 +240,7 @@ onShow(() => {
         <text class="empty__sub">点下方 + 点个菜，或直接说点什么</text>
       </view>
 
-      <view v-else class="chat-body__inner">
+      <view v-else class="chat-body__inner" :style="{ paddingTop: chatHeadHeight }">
         <template v-for="row in rows" :key="row.key">
           <!-- 日期分隔行 -->
           <view v-if="row.kind === 'day' && row.message" :id="`row-${row.key}`" class="day-row">
@@ -250,7 +253,12 @@ onShow(() => {
           </view>
 
           <!-- 点菜卡片 -->
-          <view v-else-if="row.message && row.message.type === 'order'" :id="`row-${row.key}`" class="msg-row">
+          <view
+            v-else-if="row.message && row.message.type === 'order'"
+            :id="`row-${row.key}`"
+            class="msg-row"
+            :class="{ 'msg-row--mine': isMine(row.message) }"
+          >
             <MemberAvatar v-if="!isMine(row.message)" :member-id="row.message.senderId" :size="64" />
             <view class="msg-col" :class="{ 'msg-col--mine': isMine(row.message) }">
               <text v-if="!isMine(row.message)" class="msg-name">{{ sendName(row.message) }}</text>
@@ -274,7 +282,12 @@ onShow(() => {
           </view>
 
           <!-- 文字消息 -->
-          <view v-else-if="row.message" :id="`row-${row.key}`" class="msg-row">
+          <view
+            v-else-if="row.message"
+            :id="`row-${row.key}`"
+            class="msg-row"
+            :class="{ 'msg-row--mine': isMine(row.message) }"
+          >
             <MemberAvatar v-if="!isMine(row.message)" :member-id="row.message.senderId" :size="64" />
             <view class="msg-col" :class="{ 'msg-col--mine': isMine(row.message) }">
               <view class="msg-meta" :class="{ 'msg-meta--mine': isMine(row.message) }">
@@ -323,9 +336,13 @@ onShow(() => {
   background-color: $c-bg;
 }
 
-/* 顶部 */
+/* 顶部（固定在视口顶部；消息流以同等高度的 padding-top 让位，见内联 chatHeadHeight） */
 .chat-head {
-  flex-shrink: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   background-color: $c-bg;
   border-bottom: 1px solid $c-line;
 }
@@ -382,6 +399,7 @@ onShow(() => {
   align-items: center;
   justify-content: center;
   min-height: 62vh;
+  /* padding-top 内联传入（=固定头部实际高度），保证空态插画不被头部遮挡 */
   padding: 0 64rpx;
 }
 
@@ -441,8 +459,8 @@ onShow(() => {
 }
 
 .chat-body__inner {
-  /* 底部为输入栏高度 + H5 tabBar 高度（--window-bottom）让位 */
-  padding: 24rpx 24rpx calc(132rpx + var(--window-bottom, 0));
+  /* 顶部 padding-top 内联传入（=固定头部实际高度）；底部为输入栏高度 + H5 tabBar 高度（--window-bottom）让位 */
+  padding: 0 24rpx calc(132rpx + var(--window-bottom, 0));
 }
 
 /* 日期分隔行 */
@@ -482,6 +500,11 @@ onShow(() => {
   display: flex;
   align-items: flex-start;
   margin-bottom: 28rpx;
+}
+
+/* 自己的消息整行靠右（气泡在头像左侧，对齐微信习惯） */
+.msg-row--mine {
+  justify-content: flex-end;
 }
 
 .msg-col {
